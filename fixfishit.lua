@@ -1,5 +1,5 @@
 -- NIKZZ FISH IT - FINAL INTEGRATED VERSION
--- DEVELOPER BY NIKZZ
+-- DEVELOPER BY NIKZZ GANTENGGG
 -- COMPLETE SYSTEM: AUTO QUEST + FISHING + TELEGRAM HOOK + DATABASE
 -- VERSION: FINAL MERGED - ALL FEATURES INTEGRATED
 
@@ -513,6 +513,130 @@ local function CheckStuckState()
                 return
             end
         end
+    end)
+end
+
+-- ULTRA INSTANT BITE SYSTEM
+local UltraBiteActive = false
+local TotalCatches = 0
+local StartTime = 0
+
+local function ExecuteUltraBiteCycle()
+    local catches = 0
+    
+    -- AUTO FISHING COMPLETE PROCESS - INSTANT BITE
+    pcall(function()
+        -- STEP 1: AUTO EQUIP
+        if EquipTool then
+            EquipTool:FireServer(1) -- Equip fishing rod
+        end
+        
+        -- STEP 2: AUTO CHARGE/LEMPAR
+        if ChargeRod then
+            ChargeRod:InvokeServer(tick()) -- Instant charge
+        end
+        
+        -- STEP 3: AUTO MINIGAME - INSTANT BITE BYPASS!
+        if StartMini then
+            -- BYPASS MENUNGGU IKAN MAKAN UMPAN
+            -- Langsung mulai minigame dengan perfect score
+            StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
+        end
+        
+        -- STEP 4: AUTO FINISH COMPLETE
+        if FinishFish then
+            FinishFish:FireServer() -- Complete fishing
+        end
+        
+        -- STEP 5: AUTO FISH CAUGHT
+        if FishCaught then
+            -- Dapat ikan rare
+            FishCaught:FireServer({
+                Name = "⚡ INSTANT BITE FISH",
+                Tier = math.random(5, 7),
+                SellPrice = math.random(15000, 40000),
+                Rarity = "LEGENDARY"
+            })
+            catches = 1
+        end
+        
+        -- EXTRA: MASS CATCH FOR MAX PERFORMANCE
+        if Config.MaxPerformance and FishCaught then
+            for i = 1, 2 do -- Extra 2 fish
+                FishCaught:FireServer({
+                    Name = "ULTRA FISH",
+                    Tier = math.random(6, 7),
+                    SellPrice = math.random(20000, 50000),
+                    Rarity = "MYTHIC"
+                })
+                catches = catches + 1
+            end
+        end
+    end)
+    
+    return catches
+end
+
+local function StartUltraInstantBite()
+    if UltraBiteActive then return end
+    
+    print("ACTIVATING ULTRA INSTANT BITE...")
+    
+    UltraBiteActive = true
+    TotalCatches = 0
+    StartTime = tick()
+    
+    -- MAIN ULTRA BITE LOOP
+    task.spawn(function()
+        while UltraBiteActive do
+            local cycleStart = tick()
+            
+            -- EXECUTE COMPLETE FISHING CYCLE
+            local catchesThisCycle = ExecuteUltraBiteCycle()
+            TotalCatches = TotalCatches + catchesThisCycle
+            
+            -- ULTRA FAST CYCLE TIMING
+            local cycleTime = tick() - cycleStart
+            local waitTime = math.max(Config.CycleSpeed - cycleTime, 0.01)
+            
+            task.wait(waitTime)
+        end
+    end)
+    
+    -- PERFORMANCE MONITOR
+    task.spawn(function()
+        while UltraBiteActive do
+            local elapsed = tick() - StartTime
+            local currentRate = math.floor(TotalCatches / math.max(elapsed, 1))
+            
+            pcall(function()
+                Window:SetWindowName("NIKZZ ULTRA | " .. currentRate .. " FISH/SEC")
+            end)
+            
+            task.wait(0.5)
+        end
+    end)
+    
+    Rayfield:Notify({
+        Title = "ULTRA INSTANT BITE ACTIVATED",
+        Content = "LEMPAR LANGSUNG SAMBAR! Speed: " .. Config.CycleSpeed .. "s",
+        Duration = 5
+    })
+end
+
+local function StopUltraInstantBite()
+    if not UltraBiteActive then return end
+    
+    UltraBiteActive = false
+    
+    local totalTime = tick() - StartTime
+    local avgRate = math.floor(TotalCatches / math.max(totalTime, 1))
+    
+    Rayfield:Notify({
+        Title = "🛑 ULTRA BITE STOPPED",
+        Content = "Total: " .. TotalCatches .. " fish | Avg: " .. avgRate .. "/sec",
+        Duration = 5
+    })
     end)
 end
 
@@ -1811,7 +1935,7 @@ local function CreateUI()
     Tab1:CreateSection("AUTO FEATURES")
     
     Tab1:CreateToggle({
-        Name = "Auto Fishing V1 (Ultra Fast)",
+        Name = "Auto Fishing (FAST SPEED)",
         CurrentValue = Config.AutoFishingV1,
         Callback = function(Value)
             Config.AutoFishingV1 = Value
@@ -1877,6 +2001,39 @@ local function CreateUI()
         Callback = function(Value)
             Config.AutoSell = Value
             if Value then AutoSell() end
+        end
+    })
+    
+    Tab1:CreateSection("EXTRA SPEED")
+    Tab1:CreateToggle({
+        Name = "ACTIVATE ULTRA INSTANT BITE",
+        CurrentValue = Config.UltraInstantBite,
+        Callback = function(Value)
+            Config.UltraInstantBite = Value
+            if Value then
+                StartUltraInstantBite()
+            else
+                StopUltraInstantBite()
+            end
+        end
+    })
+    
+    Tab1:CreateSlider({
+        Name = "Cycle Speed (Seconds)",
+        Range = {0.01, 1.0},
+        Increment = 0.01,
+        CurrentValue = Config.CycleSpeed,
+        Suffix = "s",
+        Callback = function(Value)
+            Config.CycleSpeed = Value
+        end
+    })
+    
+    Tab1:CreateToggle({
+        Name = "Max Performance",
+        CurrentValue = Config.MaxPerformance,
+        Callback = function(Value)
+            Config.MaxPerformance = Value
         end
     })
     
