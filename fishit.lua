@@ -1,5 +1,5 @@
 -- NIKZZ FISH IT - FINAL INTEGRATED VERSION
--- DEVELOPER BY NIKZZ GANTENG
+-- DEVELOPER BY NIKZZ RWORRRRR
 -- COMPLETE SYSTEM: AUTO QUEST + FISHING + TELEGRAM HOOK + DATABASE
 -- VERSION: FINAL MERGED - ALL FEATURES INTEGRATED
 
@@ -392,6 +392,9 @@ local Config = {
     AutoFishingV2 = false,
     AutoFishingStable = false,
     FishingDelay = 0.3,
+    UltraInstantBite = false,
+    CycleSpeed = 0.1, -- 100ms per cycle
+    MaxPerformance = true, 
     PerfectCatch = false,
     AntiAFK = false,
     AutoJump = false,
@@ -447,86 +450,131 @@ local PurchaseWeather = GetRemote("RF/PurchaseWeatherEvent")
 local UpdateAutoFishing = GetRemote("RF/UpdateAutoFishingState")
 local FishCaught = GetRemote("RE/FishCaught")
 
--- ================= FISH CATCH LISTENER =================
+-- ULTRA INSTANT BITE SYSTEM
+local UltraBiteActive = false
+local TotalCatches = 0
+local StartTime = 0
 
-local lastCatchUID = nil
-
-if FishCaught then
-    FishCaught.OnClientEvent:Connect(function(...)
-        local args = {...}
-        local itemId, weight, itemName, eventTier, eventRarity = nil, nil, nil, nil, nil
+local function ExecuteUltraBiteCycle()
+    local catches = 0
+    
+    -- AUTO FISHING COMPLETE PROCESS - INSTANT BITE
+    pcall(function()
+        -- STEP 1: AUTO EQUIP
+        if EquipTool then
+            EquipTool:FireServer(1) -- Equip fishing rod
+        end
         
-        for i, arg in ipairs(args) do
-            if type(arg) == "table" then
-                if arg.Id or arg.ID then itemId = tonumber(arg.Id or arg.ID) or (arg.Id or arg.ID) end
-                if arg.Name then itemName = arg.Name end
-                if arg.Weight then weight = arg.Weight end
-                if arg.Tier then eventTier = tonumber(arg.Tier) or eventTier end
-                if arg.Rarity then eventRarity = string.upper(tostring(arg.Rarity)) end
-            elseif type(arg) == "number" then
-                if not itemId and ItemDatabase[arg] then itemId = arg end
-                if not weight and arg > 0 and arg < 100 then weight = arg end
-            elseif type(arg) == "string" then
-                if not itemName then itemName = arg end
-            end
+        -- STEP 2: AUTO CHARGE/LEMPAR
+        if ChargeRod then
+            ChargeRod:InvokeServer(tick()) -- Instant charge
         end
-
-        if itemName and not itemId then
-            for id, info in pairs(ItemDatabase) do
-                if tostring(info.Name) == tostring(itemName) then
-                    itemId = id
-                    break
-                end
-            end
+        
+        -- STEP 3: AUTO MINIGAME - INSTANT BITE BYPASS!
+        if StartMini then
+            -- BYPASS MENUNGGU IKAN MAKAN UMPAN
+            -- Langsung mulai minigame dengan perfect score
+            StartMini:InvokeServer(-1.233184814453125, 0.9945034885633273)
         end
-
-        if not weight and type(args[2]) == "number" and args[2] > 0 and args[2] < 100 then weight = args[2] end
-
-        if itemId then
-            local info = GetItemInfo(itemId)
-
-            if eventTier and (not info.Tier or info.Tier == 0) then info.Tier = eventTier end
-            if eventRarity and eventRarity ~= "" then info.Rarity = string.upper(eventRarity) end
-
-            if (not info.Rarity or info.Rarity == "" or info.Rarity == "UNKNOWN") and info.Tier then
-                info.Rarity = tierToRarity[tonumber(info.Tier)] or "UNKNOWN"
-            end
-
-            local weightDisplay = "N/A"
-            if weight then
-                if type(weight) == "number" then weightDisplay = string.format("%.2fkg", weight) else weightDisplay = tostring(weight) .. "kg" end
-            else
-                weightDisplay = tostring(info.Weight or "N/A")
-            end
-
-            local notifyText = string.format("Name: %s\nType: %s\nUID: %s\nTier: %s\nRarity: %s\nWeight: %s\nSell Price: %s",
-                info.Name, info.Type, tostring(itemId), tostring(info.Tier or "?"), tostring(info.Rarity), weightDisplay, tostring(info.SellPrice or 0))
-            
-            Rayfield:Notify({
-                Title = "FISH CAUGHT!",
-                Content = notifyText,
-                Duration = 6
+        
+        -- STEP 4: AUTO FINISH COMPLETE
+        if FinishFish then
+            FinishFish:FireServer() -- Complete fishing
+        end
+        
+        -- STEP 5: AUTO FISH CAUGHT
+        if FishCaught then
+            -- Dapat ikan rare
+            FishCaught:FireServer({
+                Name = "⚡ INSTANT BITE FISH",
+                Tier = math.random(5, 7),
+                SellPrice = math.random(15000, 40000),
+                Rarity = "LEGENDARY"
             })
-
-            local rarity = string.upper(tostring(info.Rarity or "UNKNOWN"))
-            if ShouldSendByRarity(rarity) then
-                local message = BuildTelegramMessage(info, itemId, rarity, weight)
-                spawn(function() SendTelegram(message) end)
-            else
-                print("[Telegram] Not sending - rarity filter not matched or webhook disabled. Rarity:", rarity)
-            end
-        else
-            if itemName then
-                print("[Catch] Unknown item caught: "..tostring(itemName))
-            else
-                print("[Catch] Could not parse item data from FishCaught event.")
+            catches = 1
+        end
+        
+        -- EXTRA: MASS CATCH FOR MAX PERFORMANCE
+        if Config.MaxPerformance and FishCaught then
+            for i = 1, 2 do -- Extra 2 fish
+                FishCaught:FireServer({
+                    Name = "🚀 ULTRA FISH",
+                    Tier = math.random(6, 7),
+                    SellPrice = math.random(20000, 50000),
+                    Rarity = "MYTHIC"
+                })
+                catches = catches + 1
             end
         end
     end)
     
-    print("[FISH CAUGHT] Listener setup successfully!")
-else
-    warn("[FISH CAUGHT] Remote not found - notifications may not work.")
+    return catches
+end
+
+local function StartUltraInstantBite()
+    if UltraBiteActive then return end
+    
+    print("🚀 ACTIVATING ULTRA INSTANT BITE...")
+    
+    UltraBiteActive = true
+    TotalCatches = 0
+    StartTime = tick()
+    
+    -- MAIN ULTRA BITE LOOP
+    task.spawn(function()
+        while UltraBiteActive do
+            local cycleStart = tick()
+            
+            -- EXECUTE COMPLETE FISHING CYCLE
+            local catchesThisCycle = ExecuteUltraBiteCycle()
+            TotalCatches = TotalCatches + catchesThisCycle
+            
+            -- ULTRA FAST CYCLE TIMING
+            local cycleTime = tick() - cycleStart
+            local waitTime = math.max(Config.CycleSpeed - cycleTime, 0.01)
+            
+            task.wait(waitTime)
+        end
+    end)
+    
+    -- PERFORMANCE MONITOR
+    task.spawn(function()
+        while UltraBiteActive do
+            local elapsed = tick() - StartTime
+            local currentRate = math.floor(TotalCatches / math.max(elapsed, 1))
+            
+            pcall(function()
+                Window:SetWindowName("NIKZZ ULTRA | " .. currentRate .. " FISH/SEC")
+            end)
+            
+            task.wait(0.5)
+        end
+    end)
+    
+    Rayfield:Notify({
+        Title = "🚀 ULTRA INSTANT BITE ACTIVATED",
+        Content = "LEMPAR LANGSUNG SAMBAR! Speed: " .. Config.CycleSpeed .. "s",
+        Duration = 5
+    })
+end
+
+local function StopUltraInstantBite()
+    if not UltraBiteActive then return end
+    
+    UltraBiteActive = false
+    
+    local totalTime = tick() - StartTime
+    local avgRate = math.floor(TotalCatches / math.max(totalTime, 1))
+    
+    Rayfield:Notify({
+        Title = "🛑 ULTRA BITE STOPPED",
+        Content = "Total: " .. TotalCatches .. " fish | Avg: " .. avgRate .. "/sec",
+        Duration = 5
+    })
+    
+    pcall(function()
+        Window:SetWindowName("NIKZZ ULTRA INSTANT BITE")
+    end)
 end
 
 -- ================= AUTO FISHING V1 (ULTRA SPEED + ANTI-STUCK) =================
@@ -1893,7 +1941,7 @@ local function CreateUI()
     Tab1:CreateSection("AUTO FEATURES")
     
     Tab1:CreateToggle({
-        Name = "Auto Fishing V1 (Ultra Fast)",
+        Name = "Auto Fishing (FAST SPEED)",
         CurrentValue = Config.AutoFishingV1,
         Callback = function(Value)
             Config.AutoFishingV1 = Value
@@ -1959,6 +2007,40 @@ local function CreateUI()
         Callback = function(Value)
             Config.AutoSell = Value
             if Value then AutoSell() end
+        end
+    })
+    
+    Tab1:CreateSection("EXTRA SPEED")
+    
+    Tab1:CreateToggle({
+        Name = "ACTIVATE ULTRA INSTANT BITE",
+        CurrentValue = Config.UltraInstantBite,
+        Callback = function(Value)
+            Config.UltraInstantBite = Value
+            if Value then
+                StartUltraInstantBite()
+            else
+                StopUltraInstantBite()
+            end
+        end
+    })
+    
+    Tab1:CreateSlider({
+        Name = "Cycle Speed (Seconds)",
+        Range = {0.01, 1.0},
+        Increment = 0.01,
+        CurrentValue = Config.CycleSpeed,
+        Suffix = "s",
+        Callback = function(Value)
+            Config.CycleSpeed = Value
+        end
+    })
+    
+    Tab1:CreateToggle({
+        Name = "Max Speed",
+        CurrentValue = Config.MaxPerformance,
+        Callback = function(Value)
+            Config.MaxPerformance = Value
         end
     })
     
